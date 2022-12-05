@@ -7,12 +7,12 @@ fun main() {
     }
 
     val inputString = File("3.txt").bufferedReader().use { it.readText() }
-    val res = inputString.split("\n").dropLast(1).map {
+    val res = inputString.split("\n").dropLast(1).sumOf {
         val first = it.take(it.length / 2)
         val second = it.drop(it.length / 2)
         val commonItem = first.toSet().intersect(second.toSet()).first()
         priority(commonItem)
-    }.sum()
+    }
 
     println(res)
 }

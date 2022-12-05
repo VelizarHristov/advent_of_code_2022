@@ -7,10 +7,10 @@ fun main() {
     }
 
     val inputString = File("3.txt").bufferedReader().use { it.readText() }
-    val res = inputString.split("\n").dropLast(1).chunked(3).map {
+    val res = inputString.split("\n").dropLast(1).chunked(3).sumOf {
         val commonItem = it.map { it.toSet() }.reduce { a, b -> a.intersect(b) }.first()
         priority(commonItem)
-    }.sum()
+    }
 
     println(res)
 }
