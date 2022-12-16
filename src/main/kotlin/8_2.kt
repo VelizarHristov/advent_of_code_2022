@@ -4,7 +4,6 @@ fun main() {
     val inputString = File("8.txt").bufferedReader().use { it.readText() }
     val length = inputString.split("\n")[0].length
     val grid = Array(length) { IntArray(length) }
-    val visited = Array(length) { BooleanArray(length) }
     inputString.split("\n").dropLast(1).forEachIndexed { i, it ->
         grid[i] = it.map { it.toString().toInt() }.toIntArray()
     }
