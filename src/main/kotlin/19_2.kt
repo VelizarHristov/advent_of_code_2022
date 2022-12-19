@@ -70,10 +70,9 @@ fun main() {
                     state = state.buildGeodeBot().copy(ore = state.ore, geodes = state.geodes - 1)
                 if (state.canAffordObsBot())
                     state = state.buildObsBot().copy(ore = state.ore, obs = state.obs - 1)
+                if (state.canAffordClayBot())
+                    state = state.buildClayBot().copy(ore = state.ore, clay = state.clay - 1)
                 state = state.tick()
-                state = state.copy(
-                    oreBots = state.oreBots + 1,
-                    clayBots = state.clayBots + 1)
             }
             -state.geodes
         })
