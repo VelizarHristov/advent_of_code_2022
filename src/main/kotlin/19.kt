@@ -1,8 +1,10 @@
 import java.io.File
-import java.util.*
+import java.util.PriorityQueue
+
+import kotlin.math.ceil
 import kotlin.math.max
 
-fun main() {
+fun solve19(time: Int): List<Int> {
     val inputString = File("19.txt").bufferedReader().use { it.readText() }
     data class Blueprint(
         val oreBotCost: Int,
@@ -22,6 +24,12 @@ fun main() {
 
     // Branch & bound algorithm
     fun calcOptimalMining(bp: Blueprint): Int {
+        data class BotCost(val oreCost: Int, val clayCost: Int, val obsCost: Int)
+        val oreBotCost = BotCost(bp.oreBotCost, 0, 0)
+        val clayBotCost = BotCost(bp.clayBotCost, 0, 0)
+        val obsBotCost = BotCost(bp.obsBotCost, bp.obsBotClayCost, 0)
+        val geodeBotCost = BotCost(bp.geodeBotCost, 0, bp.geodeBotObsCost)
+
         data class State(
             val oreBots: Int,
             val clayBots: Int,
@@ -36,6 +44,19 @@ fun main() {
                 return State(oreBots, clayBots, obsBots, geodeBots,
                     ore + oreBots, clay + clayBots, obs + obsBots, geodes + geodeBots,
                     remainingTime - 1)
+            }
+            fun tickNTimes(n: Int): State {
+                return State(oreBots, clayBots, obsBots, geodeBots,
+                    ore + oreBots * n, clay + clayBots * n, obs + obsBots * n, geodes + geodeBots * n,
+                    remainingTime - n)
+            }
+            fun tickUntilAffordable(cost: BotCost): State? {
+                val (oreCost, clayCost, obsCost) = cost
+                val n1 = ceil((oreCost - ore) / oreBots.toDouble()).toInt()
+                val n2 = ceil((clayCost - clay) / clayBots.toDouble()).toInt()
+                val n3 = ceil((obsCost - obs) / obsBots.toDouble()).toInt()
+                val s = tickNTimes(max(max(max(n1, n2), n3), 0) + 1)
+                return if (s.remainingTime > 0) s else null
             }
 
             private fun isValid(): Boolean = ore >= 0 && clay >= 0 && obs >= 0
@@ -55,7 +76,6 @@ fun main() {
                 obs = obs - bp.geodeBotObsCost,
                 geodeBots = geodeBots + 1)
 
-            fun canAffordOreBot(): Boolean = buildOreBot().isValid()
             fun canAffordClayBot(): Boolean = buildClayBot().isValid()
             fun canAffordObsBot(): Boolean = buildObsBot().isValid()
             fun canAffordGeodeBot(): Boolean = buildGeodeBot().isValid()
@@ -63,8 +83,8 @@ fun main() {
 
         val maxOreCost = max(max(max(bp.oreBotCost, bp.clayBotCost), bp.obsBotCost), bp.geodeBotCost)
 
-        val nextStates = PriorityQueue<State>(compareBy {
-            var state = it
+        fun heuristic(s: State): Int {
+            var state = s
             while (state.remainingTime > 0) {
                 if (state.canAffordGeodeBot())
                     state = state.buildGeodeBot().copy(ore = state.ore, geodes = state.geodes - 1)
@@ -74,31 +94,37 @@ fun main() {
                     state = state.buildClayBot().copy(ore = state.ore, clay = state.clay - 1)
                 state = state.tick()
             }
-            -state.geodes
-        })
-        nextStates.add(State(1, 0, 0, 0, 0, 0, 0, 0, 24))
+            return -state.geodes
+        }
+        val nextStates = PriorityQueue<State>(compareBy { heuristic(it) })
+        nextStates.add(State(1, 0, 0, 0, 0, 0, 0, 0, time))
         while (nextStates.isNotEmpty()) {
             val state = nextStates.remove()!!
-            val (oreBots, _, _, _, _, _, _, geodes, remainingTime) = state
-            if (remainingTime == 0) {
+            if (state.remainingTime == 0) {
                 println(state)
-                return geodes
+                return state.geodes
             }
-            val ticked = state.tick()
-            nextStates.add(ticked)
-            if (state.canAffordOreBot() && oreBots < maxOreCost)
-                nextStates.add(ticked.buildOreBot())
-            if (state.canAffordClayBot())
-                nextStates.add(ticked.buildClayBot())
-            if (state.canAffordObsBot())
-                nextStates.add(ticked.buildObsBot())
-            if (state.canAffordGeodeBot())
-                nextStates.add(ticked.buildGeodeBot())
+            val newStates = mutableListOf<State?>()
+            if (state.oreBots < maxOreCost)
+                newStates.add(state.tickUntilAffordable(oreBotCost)?.buildOreBot())
+            newStates.add(state.tickUntilAffordable(clayBotCost)?.buildClayBot())
+            if (state.clayBots > 0)
+                newStates.add(state.tickUntilAffordable(obsBotCost)?.buildObsBot())
+            if (state.obsBots > 0)
+                newStates.add(state.tickUntilAffordable(geodeBotCost)?.buildGeodeBot())
+            val validNewStates = newStates.filterNotNull()
+            nextStates.addAll(validNewStates)
+            if (validNewStates.isEmpty())
+                nextStates.add(state.tickNTimes(state.remainingTime))
         }
         throw IllegalStateException("nextStates is empty")
     }
 
-    val geodes = blueprints.map { calcOptimalMining(it) }
+    return blueprints.map { calcOptimalMining(it) }
+}
+
+fun main() {
+    val geodes = solve19(24)
     val res = geodes.mapIndexed { i, gd -> (i + 1) * gd }.sum()
     println(res)
 }
